@@ -80,3 +80,24 @@ print(edu_summary.to_string(index=False))
 
 print("\n=== Year ===")
 print(year_summary.to_string(index=False))
+
+# … after all print() calls …
+summaries = [
+    ('Urban/Rural', urban_rural_summary),
+    ('Age', age_summary),
+    ('Sex', sex_summary),
+    ('Race/Ethnicity', race_summary),
+    ('Education', edu_summary),
+    ('Year', year_summary),
+]
+combined_dfs = []
+for name, df_sum in summaries:
+    df2 = df_sum.copy()
+    first_col = df2.columns[0]
+    df2 = df2.rename(columns={first_col: 'Category'})
+    df2.insert(0, 'Characteristic', name)
+    combined_dfs.append(df2[['Characteristic','Category','Weighted sample size','Percentage','Smoking prevalence']])
+combined_df = pd.concat(combined_dfs, ignore_index=True)
+csv_file = os.path.join(script_dir, 'descriptives_summary.csv')
+combined_df.to_csv(csv_file, index=False)
+print(f"\nSaved combined summary table to {csv_file}")
