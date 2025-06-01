@@ -207,7 +207,7 @@ def main():
 
         # Group data by state and urban/rural category, then apply the CI calculation function
         # _STATE column is used as is; its type (numeric FIPS or string) depends on SAS import
-        summary_df = df_year.groupby(['_STATE', 'URRU_cat']).apply(calculate_prevalence_ci).reset_index()
+        summary_df = df_year.groupby(['_STATE', 'URRU_cat']).apply(calculate_prevalence_ci, include_groups=False).reset_index()
 
         if summary_df.empty:
             print(f"No summary data could be calculated for {year_label}.")
@@ -233,7 +233,8 @@ def main():
         pivot_df = summary_df.pivot_table(
             index='_STATE',
             columns='URRU_cat',
-            values=['prevalence', 'prevalence_ci_str'] # Pivot both raw prevalence (for ratio) and CI string (for display)
+            values=['prevalence', 'prevalence_ci_str'], # Pivot both raw prevalence (for ratio) and CI string (for display)
+            aggfunc='first'  # Added this line
         ).reset_index()
 
         # Flatten MultiIndex columns: ('prevalence', 'Rural') becomes 'prevalence_Rural'
