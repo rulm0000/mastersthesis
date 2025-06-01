@@ -1,1 +1,2 @@
 combinedbrfss_18_23v9.sas7bdat filter=lfs diff=lfs merge=lfs -text
+combinedbrfss_18_23v9.csv filter=lfs diff=lfs merge=lfs -text
