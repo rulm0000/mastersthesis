@@ -3,8 +3,8 @@ Generates Appendix Table 2: State-level Rural vs. Urban Smoking Prevalence
 for 2018 & 2023.
 
 Input:
-- combinedbrfss_18_23v9.sas7bdat: SAS dataset expected in the same directory.
-  Required variables: _STATE, year_centered, URRU, CURRENTSMOKER, _LLCPWT.
+- combinedbrfss_18_23.csv: CSV dataset expected in the same directory.
+  Required variables: _STATE, year_centered, URRU, currentsmoker, _LLCPWT.
 
 Output:
 - appendix_table_2.csv: CSV file saved in the same directory, containing
@@ -29,14 +29,14 @@ def calculate_prevalence_ci(group):
 
     Args:
         group (pd.DataFrame): DataFrame subgroup with _LLCPWT (weights) and
-                              CURRENTSMOKER (0 or 1 indicator).
+                              currentsmoker (0 or 1 indicator).
 
     Returns:
         pd.Series: Contains 'prevalence', 'n_eff' (effective sample size),
                    'ci_lower' (CI lower bound), 'ci_upper' (CI upper bound),
                    and 'prevalence_ci_str' (formatted string for prevalence and CI).
     '''
-    weighted_smokers = (group['_LLCPWT'] * group['CURRENTSMOKER']).sum()
+    weighted_smokers = (group['_LLCPWT'] * group['currentsmoker']).sum()
     total_weight = group['_LLCPWT'].sum()
 
     # Handle cases where the group is empty or weights sum to zero
@@ -85,46 +85,72 @@ def main():
     Main function to load data, perform calculations, structure the table,
     and save it to a CSV file.
     """
-    # --- 1. Load the SAS dataset ---
+    # --- 1. Load the CSV dataset ---
     # Determine the directory of the current script to make file paths relative
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_file = os.path.join(script_dir, 'combinedbrfss_18_23v9.sas7bdat')
+    csv_file_name = 'combinedbrfss_18_23.csv' # New CSV file name
+    data_file_path = os.path.join(script_dir, csv_file_name)
 
+    print(f"Attempting to read CSV file: {data_file_path}...")
     try:
-        # Attempt to load the SAS dataset using pandas
-        # Specify encoding 'iso-8859-1' (latin1) as it's common for SAS files
-        df = pd.read_sas(data_file, format='sas7bdat', encoding='iso-8859-1')
-        print(f"Successfully loaded data from {data_file}")
+        df = pd.read_csv(data_file_path)
+        print(f"Successfully read {csv_file_name}.")
     except FileNotFoundError:
-        print(f"Error: The data file was not found at {data_file}")
-        print("Please ensure 'combinedbrfss_18_23v9.sas7bdat' is in the same directory as the script.")
-        return # Exit script if data not found
+        print(f"Error: CSV file not found at {data_file_path}")
+        print(f"Please ensure you have run 'convert_to_csv.py' to generate '{csv_file_name}',")
+        print(f"or that '{csv_file_name}' is in the same directory as this script.")
+        import sys
+        sys.exit(1)
     except Exception as e:
-        print(f"Error loading SAS dataset: {e}")
-        return # Exit script on other loading errors
+        print(f"An error occurred while reading the CSV file: {e}")
+        import sys
+        sys.exit(1)
+
+    # --- Ensure Core Column Data Types from CSV ---
+    core_cols_to_convert = {
+        '_LLCPWT': 'numeric',
+        'currentsmoker': 'numeric',
+        'URRU': 'numeric',
+        '_STATE': 'object', # Keep _STATE as object/string for grouping
+        'year_centered': 'numeric'
+        # Add other columns if they are critical and need type enforcement
+    }
+
+    print("Performing data type conversions for core columns...")
+    for col, col_type in core_cols_to_convert.items():
+        if col not in df.columns:
+            print(f"Error: Expected column '{col}' not found in the CSV file. Cannot proceed.")
+            import sys
+            sys.exit(1)
+
+        if col_type == 'numeric':
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            if df[col].isnull().any():
+                # This check is particularly important for _LLCPWT and currentsmoker
+                print(f"Warning: Column '{col}' contained non-numeric values that were converted to NaN.")
+        elif col_type == 'object':
+            df[col] = df[col].astype(str) # Ensure _STATE is string
+
+    # Specifically check _LLCPWT for all NaNs after conversion attempt
+    if '_LLCPWT' in df.columns and df['_LLCPWT'].isnull().all():
+        print("Error: All values in '_LLCPWT' are NaN after conversion. Check CSV data quality.")
+        import sys
+        sys.exit(1)
+
+    # Drop rows where 'year_centered' is NaN (essential for filtering)
+    # This was previously done after a specific to_numeric conversion for 'year_centered',
+    # now 'year_centered' is converted with other core columns.
+    if 'year_centered' in df.columns:
+        df.dropna(subset=['year_centered'], inplace=True)
+    else:
+        # This case should be caught by the core_cols_to_convert check, but as a safeguard:
+        print("Error: 'year_centered' column is missing, cannot proceed with year filtering.")
+        import sys
+        sys.exit(1)
+
 
     # --- 2. Filter Data for 2018 and 2023 ---
-    # The 'year_centered' column is expected: 2018 is -2, 2023 is 3 (assuming 2020 is the center year 0)
-    if 'year_centered' not in df.columns:
-        print("Error: 'year_centered' column not found in the dataset.")
-        # The script could attempt to derive 'year_centered' from 'IYEAR' if available,
-        # but current requirements specify 'year_centered' must be present.
-        if 'IYEAR' in df.columns:
-            print("Info: 'IYEAR' column found, but 'year_centered' is required for specific filtering logic.")
-            # Example derivation: df['year_centered_calculated'] = df['IYEAR'] - 2020
-            # However, sticking to the explicit requirement for 'year_centered'.
-        print("Please ensure 'year_centered' column is present as specified.")
-        return
-
-    try:
-        # Convert 'year_centered' to numeric, coercing errors. Non-numeric values become NaN.
-        df['year_centered'] = pd.to_numeric(df['year_centered'], errors='coerce')
-        # Drop rows where 'year_centered' could not be converted (became NaN)
-        df.dropna(subset=['year_centered'], inplace=True)
-    except Exception as e:
-        print(f"Error converting 'year_centered' to numeric: {e}")
-        return
-
+    # The 'year_centered' column is now confirmed to be numeric and free of NaNs here.
     # Filter data for the specific years: 2018 (year_centered == -2) and 2023 (year_centered == 3)
     # .copy() is used to avoid SettingWithCopyWarning later on
     df_2018 = df[df['year_centered'] == -2].copy()
@@ -140,33 +166,21 @@ def main():
     else:
         print(f"Filtered {len(df_2023)} records for 2023.")
 
-    # Verify that other essential columns for calculation are present in the original DataFrame
-    required_cols = ['_STATE', 'URRU', 'CURRENTSMOKER', '_LLCPWT']
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    if missing_cols:
-        print(f"Error: Missing required columns in the dataset: {', '.join(missing_cols)}. Cannot proceed.")
-        return
+    # Key calculation columns, used for dropping rows with missing essential data in year-specific DFs
+    # Types for these columns (_LLCPWT, currentsmoker, URRU, _STATE) have been enforced on the main 'df'.
+    key_calc_cols = ['_LLCPWT', 'currentsmoker', 'URRU', '_STATE']
 
-    # Data type conversion and cleaning for key columns in the filtered DataFrames
-    # CURRENTSMOKER: Expected to be 0 (non-smoker) or 1 (smoker).
-    # URRU: Expected to be 0 (urban) or 1 (rural).
-    for year_df in [df_2018, df_2023]:
-        if not year_df.empty:
-            year_df['CURRENTSMOKER'] = pd.to_numeric(year_df['CURRENTSMOKER'], errors='coerce')
-            year_df['URRU'] = pd.to_numeric(year_df['URRU'], errors='coerce')
-            year_df['_LLCPWT'] = pd.to_numeric(year_df['_LLCPWT'], errors='coerce')
-
-
-    # Drop rows where key variables for calculation are missing (NaN) AFTER attempting conversion
-    key_calc_cols = ['_LLCPWT', 'CURRENTSMOKER', 'URRU', '_STATE']
+    # For each year-specific DataFrame, drop rows if any of these key columns are NaN.
+    # This is crucial as these columns are directly used in `calculate_prevalence_ci`.
     df_2018.dropna(subset=key_calc_cols, inplace=True)
     df_2023.dropna(subset=key_calc_cols, inplace=True)
 
-    # Report if data for a year was entirely dropped due to missing values in key columns
-    if df_2018.empty and not df[df['year_centered'] == -2].empty: # Check original df to confirm data existed before dropna
-        print("Warning: All data for 2018 was dropped due to missing values in key calculation columns (_LLCPWT, CURRENTSMOKER, URRU, _STATE).")
+    # Report if data for a year was entirely dropped due to missing values in these key columns
+    # Check against original df size for that year to confirm data existed before this dropna
+    if df_2018.empty and not df[df['year_centered'] == -2].empty :
+        print("Warning: All data for 2018 was dropped due to missing values in key calculation columns (_LLCPWT, currentsmoker, URRU, _STATE) after year filtering.")
     if df_2023.empty and not df[df['year_centered'] == 3].empty:
-        print("Warning: All data for 2023 was dropped due to missing values in key calculation columns (_LLCPWT, CURRENTSMOKER, URRU, _STATE).")
+        print("Warning: All data for 2023 was dropped due to missing values in key calculation columns (_LLCPWT, currentsmoker, URRU, _STATE) after year filtering.")
 
     # --- 3. Implement Calculation Logic for Each Year ---
     processed_years = {} # Dictionary to store summary DataFrames for each year

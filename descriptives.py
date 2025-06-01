@@ -1,13 +1,48 @@
 import os
 import pandas as pd
 
-# 1. Load the SAS dataset
+# 1. Load the CSV dataset
 script_dir = os.path.dirname(os.path.abspath(__file__))
-data_file = os.path.join(script_dir, 'combinedbrfss_18_23v9.sas7bdat')
-df = pd.read_sas(data_file, format='sas7bdat')
+csv_file_name = 'combinedbrfss_18_23.csv' # New CSV file name
+data_file_path = os.path.join(script_dir, csv_file_name)
+
+print(f"Attempting to read CSV file: {data_file_path}...")
+try:
+    df = pd.read_csv(data_file_path)
+    print(f"Successfully read {csv_file_name}.")
+except FileNotFoundError:
+    print(f"Error: CSV file not found at {data_file_path}")
+    print(f"Please ensure you have run 'convert_to_csv.py' to generate '{csv_file_name}',")
+    print(f"or that '{csv_file_name}' is in the same directory as this script.")
+    import sys
+    sys.exit(1)
+except Exception as e:
+    print(f"An error occurred while reading the CSV file: {e}")
+    import sys
+    sys.exit(1)
+
+# Ensure key numeric columns are indeed numeric after CSV load
+numeric_cols_to_check = ['_LLCPWT', 'currentsmoker', 'URRU', '_AGE_G', 'SEXVAR', '_RACEGR3', '_EDUCAG', 'year_centered']
+for col in numeric_cols_to_check:
+    if col in df.columns:
+        # Attempt to convert to numeric, coercing errors to NaN
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+        # Optional: Check for NaNs introduced if conversion failed for some rows
+        if df[col].isnull().any():
+            print(f"Warning: Column '{col}' contains non-numeric values that were converted to NaN.")
+    else:
+        print(f"Warning: Expected numeric column '{col}' not found in CSV. This might lead to errors.")
 
 # 2. Compute total weighted sample size
+# Ensure _LLCPWT is not all NaN before summing, otherwise total_weight could be NaN
+if df['_LLCPWT'].isnull().all():
+    print("Error: '_LLCPWT' column is entirely NaN or missing. Cannot compute total weight.")
+    import sys
+    sys.exit(1)
 total_weight = df['_LLCPWT'].sum()
+if total_weight == 0:
+    print("Warning: Total weighted sample size (_LLCPWT sum) is zero. Percentages will be NaN or Inf.")
+
 
 # 3. Create categorical labels for each analytic variable
 df['URRU_cat'] = df['URRU'].map({0: 'Urban', 1: 'Rural'}).fillna('Missing')
