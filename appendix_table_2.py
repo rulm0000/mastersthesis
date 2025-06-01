@@ -3,7 +3,7 @@ Generates Appendix Table 2: State-level Rural vs. Urban Smoking Prevalence
 for 2018 & 2023.
 
 Input:
-- combinedbrfss_18_23.csv: CSV dataset expected in the same directory.
+- combinedbrfss_18_23v9.csv: CSV dataset expected in the same directory.
   Required variables: _STATE, year_centered, URRU, currentsmoker, _LLCPWT.
 
 Output:
@@ -88,7 +88,7 @@ def main():
     # --- 1. Load the CSV dataset ---
     # Determine the directory of the current script to make file paths relative
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_file_name = 'combinedbrfss_18_23.csv' # New CSV file name
+    csv_file_name = 'combinedbrfss_18_23v9.csv' # Updated CSV file name
     data_file_path = os.path.join(script_dir, csv_file_name)
 
     print(f"Attempting to read CSV file: {data_file_path}...")

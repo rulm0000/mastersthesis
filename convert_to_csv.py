@@ -9,11 +9,11 @@ def convert_sas_to_csv():
     - combinedbrfss_18_23v9.sas7bdat: Expected in the same directory as this script.
 
     Output:
-    - combinedbrfss_18_23.csv: Will be saved in the same directory.
+    - combinedbrfss_18_23v9.csv: Will be saved in the same directory.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sas_file_name = 'combinedbrfss_18_23v9.sas7bdat'
-    csv_file_name = 'combinedbrfss_18_23.csv'
+    csv_file_name = 'combinedbrfss_18_23v9.csv'
 
     sas_file_path = os.path.join(script_dir, sas_file_name)
     csv_file_path = os.path.join(script_dir, csv_file_name)
