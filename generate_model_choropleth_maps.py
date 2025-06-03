@@ -18,9 +18,6 @@ def parse_p(val):
 def main():
     # Read model results
     df = pd.read_excel('CS_QR_finalresults17.xlsx', sheet_name=0, engine='openpyxl')
-    # Load rural sample sizes
-    dfr = pd.read_csv('combinedbrfss_18_23v9.csv', usecols=['_STATE','URRU'])
-    rural_counts = dfr[dfr['URRU']==1].groupby('_STATE').size()
     # State name to USPS code
     state_abbrev = {
         'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA',
@@ -36,7 +33,6 @@ def main():
     }
     df['abbr'] = df['State'].map(state_abbrev)
     df['_STATE'] = df['State Code'].astype(int)
-    df['rural_n'] = df['_STATE'].map(rural_counts).fillna(0).astype(int)
 
     # Model specifications
     models = [
@@ -54,7 +50,7 @@ def main():
         df['OR'] = pd.to_numeric(df[or_col], errors='coerce')
         df['p'] = df[p_col].apply(parse_p)
         # Identify significant and sufficient
-        mask_sig = (df['p'] < 0.05) & (df['rural_n'] >= 50) & df['OR'].notna()
+        mask_sig = (df['p'] < 0.05) & df['OR'].notna()
         or_sig = df.loc[mask_sig, 'OR']
         # Compute tertiles
         if not or_sig.empty:
@@ -62,14 +58,14 @@ def main():
         else:
             q1 = q2 = np.nan
         # Define labels
-        lbl0 = 'Insignificance or insufficient rural sample size (n<50)'
+        lbl0 = 'Insignificant (p≥0.05 or OR is null)'
         lbl1 = f'OR ≤ {q1:.2f}'
         lbl2 = f'{q1:.2f} < OR ≤ {q2:.2f}'
         lbl3 = f'OR > {q2:.2f}'
         lbl_map = {0:lbl0, 1:lbl1, 2:lbl2, 3:lbl3}
         # Category assignment
         def cat(row):
-            if row['rural_n'] < 50 or row['p'] >= 0.05 or np.isnan(row['OR']):
+            if row['p'] >= 0.05 or np.isnan(row['OR']):
                 return lbl0
             if row['OR'] <= q1:
                 return lbl1
