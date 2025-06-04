@@ -77,7 +77,8 @@ def build_maps():
                 return labels[3]
 
         df['cat'] = df.apply(cat, axis=1)
-        merged = states.merge(df[['abbr','cat']], on='abbr', how='left')
+        merged = states.merge(df[['abbr', 'cat']], on='abbr', how='left')
+        merged['cat'] = merged['cat'].fillna(labels[0])
         merged['color'] = merged['cat'].map(cmap)
         merged.plot(color=merged['color'], linewidth=0.5, edgecolor='black', ax=ax)
         ax.axis('off')
