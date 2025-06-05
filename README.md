@@ -11,6 +11,7 @@ This repository contains scripts and datasets used to analyze BRFSS data and vis
 - **descriptives2.py**: Similar to `descriptives.py`, exports summaries to `descriptives_summary.csv`.
 - **generate_model_choropleth_maps.py**: Creates three-panel choropleth maps using Plotly and Matplotlib.
 - **generate_square_choropleth.py**: Generates square-tile maps for odds ratios across three models. Running it produces `square_model_OR_maps.png`, which is not tracked in version control.
+- **generate_geo_choropleth.py**: Creates three geographic maps across three models using state shapes.
 - **us-states.json**: GeoJSON file used for state centroids in mapping.
 
 ## Dependencies
@@ -29,6 +30,7 @@ Run any of the Python files from the project root. For example:
 python descriptives.py
 python descriptives2.py
 python generate_model_choropleth_maps.py
+python generate_geo_choropleth.py
 python generate_square_choropleth.py
 ```
 
