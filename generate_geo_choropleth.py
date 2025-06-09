@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
-from shapely import affinity
 import geopandas as gpd
 
 STATE_ABBR = {
