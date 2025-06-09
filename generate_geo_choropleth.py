@@ -30,6 +30,7 @@ def parse_p(val):
 
 
 def load_states():
+
     """Load state geometries and shrink/shift Alaska and Hawaii."""
     gdf = gpd.read_file('us-states.json')
     gdf = gdf[gdf['name'] != 'Puerto Rico']
@@ -43,6 +44,11 @@ def load_states():
     hi = hi.translate(5200000, -1400000)
     gdf.loc[gdf['abbr'] == 'HI', 'geometry'] = hi
     gdf = gdf.to_crs('EPSG:4326')
+
+
+    gdf = gpd.read_file('us-states.json')
+    gdf = gdf[gdf['name'] != 'Puerto Rico']
+    gdf['abbr'] = gdf['name'].map(STATE_ABBR)
 
     return gdf[['abbr', 'geometry']]
 
@@ -62,8 +68,12 @@ def build_maps():
         ('Model 3', 'Model 3_CS_OR', 'Model 3_CS_p')
     ]
 
+
     # Color-blind-friendly palette
     colors = ['#D3D3D3', '#88CCEE', '#DDCC77', '#CC6677']
+
+    colors = ['lightgrey', '#a6bddb', '#3690c0', '#034e7b']
+
     labels = [
         'Insufficient sample or p≥0.05',
         'OR < 1.2',
@@ -72,7 +82,11 @@ def build_maps():
     ]
     cmap = {labels[i]: colors[i] for i in range(len(labels))}
 
+
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 8))
+
     for ax, (title, or_col, p_col) in zip(axes, models):
         df = results.copy()
         df['OR'] = pd.to_numeric(df[or_col], errors='coerce')
@@ -91,6 +105,7 @@ def build_maps():
         df['cat'] = df.apply(cat, axis=1)
         merged = states.merge(df[['abbr', 'cat']], on='abbr', how='left')
         merged['cat'] = merged['cat'].fillna(labels[0])
+
         merged['color'] = merged['cat'].map(cmap).fillna(colors[0])
         merged.plot(color=merged['color'], linewidth=0.5, edgecolor='black', ax=ax)
         ax.axis('off')
@@ -99,6 +114,16 @@ def build_maps():
     legend_elems = [Patch(facecolor=colors[i], edgecolor='black', label=lab) for i, lab in enumerate(labels)]
     fig.legend(handles=legend_elems, loc='lower center', ncol=4, frameon=False, prop={'size':12})
     fig.tight_layout(rect=[0,0.06,1,1])
+
+        merged['color'] = merged['cat'].map(cmap)
+        merged.plot(color=merged['color'], linewidth=0.5, edgecolor='black', ax=ax)
+        ax.axis('off')
+        ax.set_title(title)
+
+    legend_elems = [Patch(facecolor=colors[i], edgecolor='black', label=lab) for i, lab in enumerate(labels)]
+    fig.legend(handles=legend_elems, loc='lower center', ncol=4, frameon=False)
+    fig.tight_layout(rect=[0,0.05,1,1])
+
     out = 'geo_model_OR_maps.png'
     fig.savefig(out, dpi=300)
     print(f'Saved {out}')
